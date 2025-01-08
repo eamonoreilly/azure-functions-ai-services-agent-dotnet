@@ -82,8 +82,11 @@ StyleCopReport.xml
 *.pgc
 *.pgd
 *.rsp
+<<<<<<< HEAD
 # but not Directory.Build.rsp, as it configures directory-level build defaults
 !Directory.Build.rsp
+=======
+>>>>>>> a53748d (Initial commit)
 *.sbr
 *.tlb
 *.tli
@@ -398,3 +401,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+<<<<<<< HEAD
+=======
+.azure
+>>>>>>> a53748d (Initial commit)
