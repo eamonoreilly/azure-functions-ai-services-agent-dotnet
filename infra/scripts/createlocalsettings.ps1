@@ -18,7 +18,7 @@ if (-not (Test-Path ".\app\local.settings.json")) {
         "IsEncrypted" = "false";
         "Values" = @{
             "AzureWebJobsStorage" = "UseDevelopmentStorage=true";
-            "FUNCTIONS_WORKER_RUNTIME" = "python";
+            "FUNCTIONS_WORKER_RUNTIME" = "dotnet-isolated";
             "PROJECT_CONNECTION_STRING" = "$AIProjectConnectionString";
             "STORAGE_CONNECTION__queueServiceUri" = "$StorageConnectionQueue";
         }

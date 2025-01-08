@@ -1,6 +1,5 @@
 @host=http://localhost:7071
 
-
 ### Ask what the weather is in a place to trigger GetWeather function
 POST  {{host}}/api/prompt
 Content-Type: application/json

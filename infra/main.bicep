@@ -145,8 +145,8 @@ module api './app/api.bicep' = {
     tags: tags
     applicationInsightsName: monitoring.outputs.applicationInsightsName
     appServicePlanId: appServicePlan.outputs.id
-    runtimeName: 'python'
-    runtimeVersion: '3.11'
+    runtimeName: 'dotnet-isolated'
+    runtimeVersion: '8.0'
     storageAccountName: storage.outputs.name
     deploymentStorageContainerName: deploymentStorageContainerName
     identityId: apiUserAssignedIdentity.outputs.identityId

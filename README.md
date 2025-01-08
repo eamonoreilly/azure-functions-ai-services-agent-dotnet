@@ -8,9 +8,9 @@ products:
 - azure
 - entra-id
 - azure-openai
-urlFragment: azure-functions-ai-services-agent-python
+urlFragment: azure-functions-ai-services-agent-dotnet
 languages:
-- python
+- C#
 - bicep
 - azdeveloper
 ---
@@ -19,7 +19,7 @@ languages:
 # Azure Functions
 ## Using Azure Functions to enable function calling from Azure AI Agent service
 
-This sample highlights how to use the [Azure AI Agent service](https://learn.microsoft.com/en-us/azure/ai-studio/how-to/develop/sdk-overview?tabs=sync&pivots=programming-language-python#azure-ai-agent-service) function calling where function calls are placed on a storage queue by the Agent service to be processed by an Azure Function listening to that queue. 
+This sample highlights how to use the [Azure AI Agent service](https://learn.microsoft.com/en-us/azure/ai-studio/how-to/develop/sdk-overview?tabs=sync&pivots=programming-language-csharp#azure-ai-agent-service) function calling where function calls are placed on a storage queue by the Agent service to be processed by an Azure Function listening to that queue. 
 
 You can learn more about Azure functions in the [Official documentation](https://learn.microsoft.com/en-us/azure/azure-functions)
 
@@ -28,7 +28,7 @@ The [`app`](./app/) folder contains the function code used in this sample while 
 ## Prerequisites
 
 * [Azure Functions Core Tools v4.x](https://learn.microsoft.com/azure/azure-functions/functions-run-local?tabs=v4%2Cwindows%2Cnode%2Cportal%2Cbash)
-* [Azure AI Agent Service](https://learn.microsoft.com/en-us/azure/ai-studio/how-to/develop/sdk-overview?tabs=sync&pivots=programming-language-python#azure-ai-agent-service)
+* [Azure AI Agent Service](https://learn.microsoft.com/en-us/azure/ai-studio/how-to/develop/sdk-overview?tabs=sync&pivots=programming-language-csharp#azure-ai-agent-service)
 * [Azurite](https://github.com/Azure/Azurite)
 
 ## Prepare your local environment
@@ -38,7 +38,7 @@ The [`app`](./app/) folder contains the function code used in this sample while 
 Once you have your Azure subscription, run the following in a new terminal window to create Azure OpenAI and other resources needed:
 
 ```bash
-azd init --template https://github.com/Azure-Samples/azure-functions-ai-services-agent-python
+azd init --template https://github.com/Azure-Samples/azure-functions-ai-services-agent-dotnet
 ```
 Mac/Linux:
 ```bash
@@ -58,7 +58,7 @@ azd provision
 {
   "IsEncrypted": false,
   "Values": {
-    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "STORAGE_CONNECTION__queueServiceUri": "https://<storageaccount>.queue.core.windows.net",
     "PROJECT_CONNECTION_STRING": "<project connnection for AI Project>",
     "AzureWebJobsStorage": "UseDevelopmentStorage=true"

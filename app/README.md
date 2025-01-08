@@ -1,6 +1,6 @@
 # Azure AI Agents function calling with Azure Functions
 
-Azure AI Agents supports function calling, which allows you to describe the structure of functions to an Assistant and then return the functions that need to be called along with their arguments. This example shows how to use Azure Functions to process the function calls through queue messages in Azure Storage. You can see a complete working sample on https://github.com/Azure-Samples/azure-functions-ai-services-agent-python
+Azure AI Agents supports function calling, which allows you to describe the structure of functions to an Assistant and then return the functions that need to be called along with their arguments. This example shows how to use Azure Functions to process the function calls through queue messages in Azure Storage. You can see a complete working sample on https://github.com/Azure-Samples/azure-functions-ai-services-agent-dotnet
 
 ### Supported models
 
@@ -11,36 +11,42 @@ To use all features of function calling including parallel functions, you need t
 
 Start by defining an Azure Function queue trigger function that will process function calls from the queue. 
 
-```python
-# Function to get the weather from an Azure Storage queue where the AI Agent will send function call information
-# It returns the mock weather to an output queue with the correlation id for the AI Agent service to pick up the result of the function call
-@app.function_name(name="GetWeather")
-@app.queue_trigger(arg_name="msg", queue_name="input", connection="STORAGE_CONNECTION")  
-def process_queue_message(msg: func.QueueMessage) -> None:
-    logging.info('Python queue trigger function processed a queue item')
+```C#
+// Function to get the weather from an Azure Storage queue where the AI Agent will send function call information
+// It returns the mock weather to an output queue with the correlation id for the AI Agent service to pick up the result of the function call
+    [Function("GetWeather")]
+    [QueueOutput(outputQueueName, Connection = "STORAGE_CONNECTION")]
+    public static string ProcessQueueMessage([QueueTrigger(inputQueueName, Connection = "STORAGE_CONNECTION")] string msg, FunctionContext context)
+    {
+        var logger = context.GetLogger("GetWeather");
+        logger.LogInformation("C# queue trigger function processed a queue item");
 
-    # Queue to send message to
-    queue_client = QueueClient(
-        os.environ["STORAGE_CONNECTION__queueServiceUri"],
-        queue_name="output",
-        credential=DefaultAzureCredential(),
-        message_encode_policy=BinaryBase64EncodePolicy(),
-        message_decode_policy=BinaryBase64DecodePolicy()
-    )
+        try
+        {
+            // Deserialize the message payload and get the location and correlation ID
+            var messagePayload = JsonSerializer.Deserialize<Dictionary<string, string>>(msg);
+            if (messagePayload == null || !messagePayload.TryGetValue("location", out var location))
+            {
+                throw new ArgumentNullException("The 'location' field is missing in the message payload.");
+            }
+            var correlationId = messagePayload["CorrelationId"];
 
-    # Get the content of the function call message
-    messagepayload = json.loads(msg.get_body().decode('utf-8'))
-    location = messagepayload['location']
-    correlation_id = messagepayload['CorrelationId']
+            // Send message to queue. Sends a mock message for the weather
+            var resultMessage = new Dictionary<string, string>
+            {
+                { "Value", $"Weather is 74 degrees and sunny in {location}" },
+                { "CorrelationId", correlationId }
+            };
 
-    # Send message to queue. Sends a mock message for the weather
-    result_message = {
-        'Value': 'Weather is 74 degrees and sunny in ' + location,
-        'CorrelationId': correlation_id
+            logger.LogInformation($"Sent message to queue: {outputQueueName}");
+            return JsonSerializer.Serialize(resultMessage);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError($"Error processing queue message: {ex.Message}");
+            throw;
+        }
     }
-    queue_client.send_message(json.dumps(result_message).encode('utf-8'))
-
-    logging.info(f"Sent message to output queue with message {result_message}")
 ```
 
 ---
@@ -49,110 +55,149 @@ def process_queue_message(msg: func.QueueMessage) -> None:
 
 In the sample below we create a client and an agent that has the tools definition for the Azure Function
 
-```python
-# Initialize the client and create agent for the tools Azure Functions that the agent can use
-
-# Create a project client
-project_client = AIProjectClient.from_connection_string(
-    credential=DefaultAzureCredential(),
-    conn_str=os.environ["PROJECT_CONNECTION_STRING"]
-)
-
-# Get the connection string for the storage account to send and receive the function calls to the queues
-storage_connection_string = os.environ["STORAGE_CONNECTION__queueServiceUri"]
-
-# Create an agent with the Azure Function tool to get the weather
-agent = project_client.agents.create_agent(
-    model="gpt-4o-mini",
-    name="azure-function-agent-get-weather",
-    instructions="You are a helpful support agent. Answer the user's questions to the best of your ability.",
-    headers={"x-ms-enable-preview": "true"},
-    tools=[
+```C#
+// Initialize the client and create agent for the tools Azure Functions that the agent can use
+   private static async Task<(AgentsClient, AgentThread, Agent)> InitializeClient(ILogger logger)
+    {
+        try
         {
-            "type": "azure_function",
-            "azure_function": {
-                "function": {
-                    "name": "GetWeather",
-                    "description": "Get the weather in a location.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "location": {"type": "string", "description": "The location to look up."}
-                        },
-                        "required": ["location"]
-                    }
-                },
-                "input_binding": {
-                    "type": "storage_queue",
-                    "storage_queue": {
-                        "queue_service_uri": storage_connection_string,
-                        "queue_name": "input"
-                    }
-                },
-                "output_binding": {
-                    "type": "storage_queue",
-                    "storage_queue": {
-                        "queue_service_uri": storage_connection_string,
-                        "queue_name": "output"
-                    }
-                }
+            // Create a project client using the connection string from local.settings.json
+            var connectionString = Environment.GetEnvironmentVariable("PROJECT_CONNECTION_STRING");
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new InvalidOperationException("PROJECT_CONNECTION_STRING is not set.");
             }
+
+            AgentsClient client = new AgentsClient(connectionString, new DefaultAzureCredential());
+
+            // Get the connection string from local.settings.json
+            var storageConnectionString = Environment.GetEnvironmentVariable("STORAGE_CONNECTION__queueServiceUri");
+            if (string.IsNullOrEmpty(storageConnectionString))
+            {
+                throw new InvalidOperationException("STORAGE_CONNECTION__queueServiceUri is not set.");
+            }
+
+            // Tool definition for the Azure Function
+            AzureFunctionToolDefinition azureFunctionTool = new(
+                name: "GetWeather",
+                description: "Get the weather in a location.",
+                inputBinding: new AzureFunctionBinding(
+                    new AzureFunctionStorageQueue(
+                        queueName: inputQueueName,
+                        storageServiceEndpoint: storageConnectionString
+                    )
+                ),
+                outputBinding: new AzureFunctionBinding(
+                    new AzureFunctionStorageQueue(
+                        queueName: outputQueueName,
+                        storageServiceEndpoint: storageConnectionString
+                    )
+                ),
+                parameters: BinaryData.FromObjectAsJson(
+                        new
+                        {
+                            Type = "object",
+                            Properties = new
+                            {
+                                location = new
+                                {
+                                    Type = "string",
+                                    Description = "The location to look up.",
+                                }
+                            },
+                        },
+                    new JsonSerializerOptions() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
+                )
+            );
+
+            // Create an agent with the Azure Function tool to get the weather
+            Response<Agent> agent = await client.CreateAgentAsync(
+                model: "gpt-4o-mini",
+                name: "azure-function-agent-get-weather",
+                instructions: "You are a helpful support agent. Answer the user's questions to the best of your ability.",
+                tools: new List<ToolDefinition> { azureFunctionTool }
+            );
+
+            logger.LogInformation($"Created agent, agent ID: {agent.Value.Id}");
+
+            // Create a thread
+            Response<AgentThread> thread = await client.CreateThreadAsync();
+            logger.LogInformation($"Created thread, thread ID: {thread.Value.Id}");
+
+            return (client, thread, agent);
         }
-    ],
-)
-```
-
----
-
-## Create a thread for the agent
-
-```python
-# Create a thread
-thread = project_client.agents.create_thread()
-print(f"Created thread, thread ID: {thread.id}")
+        catch (Exception ex)
+        {
+            logger.LogError($"Error initializing client: {ex.Message}");
+            throw;
+        }
+    }
 ```
 
 ---
 
 ## Create a run and check the output
 
-```python
-# Send the prompt to the agent
-message = project_client.agents.create_message(
-    thread_id=thread.id,
-    role="user",
-    content="What is the weather in Seattle, WA?",
-)
-print(f"Created message, message ID: {message.id}")
+```C#
+// Initialize the agent client and thread
+var (client, thread, agent) = await InitializeClient(logger);
 
-# Run the agent
-run = project_client.agents.create_run(thread_id=thread.id, assistant_id=agent.id)
-# Monitor and process the run status. The function call should be placed on the input queue by the Agent service for the Azure Function to pick up when requires_action is returned
-while run.status in ["queued", "in_progress", "requires_action"]:
-    time.sleep(1)
-    run = project_client.agents.get_run(thread_id=thread.id, run_id=run.id)
+// Send the prompt to the agent
+Response<ThreadMessage> messageResponse = await client.CreateMessageAsync(
+    thread.Id,
+    MessageRole.User,
+    "What is the weather in Seattle?");
+ThreadMessage message = messageResponse.Value;
 
-    if run.status not in ["queued", "in_progress", "requires_action"]:
-        break
+Response<ThreadRun> runResponse = await client.CreateRunAsync(thread, agent);
 
-print(f"Run finished with status: {run.status}")
+// Poll the run until it's completed
+do
+{
+    await Task.Delay(TimeSpan.FromMilliseconds(500));
+    runResponse = await client.GetRunAsync(thread.Id, runResponse.Value.Id);
+}
+while (runResponse.Value.Status == RunStatus.Queued
+    || runResponse.Value.Status == RunStatus.InProgress
+    || runResponse.Value.Status == RunStatus.RequiresAction);
 ```
 
 ---
 
 ### Get the result of the run and print out
 
-```python
-# Get messages from the assistant thread
-messages = project_client.agents.get_messages(thread_id=thread.id)
-print(f"Messages: {messages}")
+```C#
+    // Get messages from the assistant thread
+    var messages = await client.GetMessagesAsync(thread.Id);
+    logger.LogInformation($"Messages: {messages}");
 
-# Get the last message from the assistant
-last_msg = messages.get_last_text_message_by_sender("assistant")
-if last_msg:
-    print(f"Last Message: {last_msg.text.value}")
+    // Get the most recent message from the assistant
+    string lastMsg = string.Empty;
+    foreach (ThreadMessage threadMessage in messages.Value)
+    {
+    MessageContent contentItem = threadMessage.ContentItems[0];
+    if (contentItem is MessageTextContent textItem)
+    {
+        lastMsg = textItem.Text;
+        break;
+    }
+    }
 
-# Delete the agent once done
-project_client.agents.delete_agent(agent.id)
-print("Deleted agent")
+    logger.LogInformation($"Most recent message: {lastMsg}");
+
+    // Delete the agent once done
+    await client.DeleteAgentAsync(agent.Id);
+    logger.LogInformation("Deleted agent");
+
+    var response = req.CreateResponse(System.Net.HttpStatusCode.OK);
+    await response.WriteStringAsync(lastMsg ?? string.Empty);
+    return response;
+    }
+    catch (Exception ex)
+    {
+        logger.LogError($"Error processing prompt: {ex.Message}");
+        var errorResponse = req.CreateResponse(System.Net.HttpStatusCode.InternalServerError);
+        await errorResponse.WriteStringAsync("An error occurred while processing the request.");
+        return errorResponse;
+    }
 ```
