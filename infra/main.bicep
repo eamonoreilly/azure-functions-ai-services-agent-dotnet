@@ -15,7 +15,7 @@ param environmentName string
 param location string = 'eastus'
 
 @description('Skip the creation of the virtual network and private endpoint')
-param skipVnet bool = true
+param skipVnet bool
 
 @description('Name of the API service')
 param apiServiceName string = ''
@@ -159,7 +159,6 @@ module api './app/api.bicep' = {
   }
 }
 
-
 // Backing storage for Azure functions backend processor
 module storage 'core/storage/storage-account.bicep' = {
   name: 'storage'
@@ -169,10 +168,24 @@ module storage 'core/storage/storage-account.bicep' = {
     tags: tags
     containers: [
       {name: deploymentStorageContainerName}
-     ]
-     networkAcls: skipVnet ? {} : {
+    ]
+    networkAcls: skipVnet ? {} : {
+      bypass: 'None'
+      virtualNetworkRules: [
+        {
+          id: serviceVirtualNetwork.outputs.appSubnetID
+          action: 'Allow'
+          state: 'Succeeded'
+        }
+      ]
+      resourceAccessRules: [
+        {
+          tenantId: tenant().tenantId
+          resourceId: aiProject.outputs.aiProjectResourceId
+        }
+      ]
         defaultAction: 'Deny'
-      }
+    }
   }
 }
 
