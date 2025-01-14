@@ -22,6 +22,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     minimumTlsVersion: minimumTlsVersion
     allowBlobPublicAccess: allowBlobPublicAccess    
     allowSharedKeyAccess: false
+    publicNetworkAccess: 'Enabled'
     networkAcls: networkAcls
   }
 
