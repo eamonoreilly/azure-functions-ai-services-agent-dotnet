@@ -159,36 +159,6 @@ module api './app/api.bicep' = {
   }
 }
 
-// Backing storage for Azure functions backend processor
-module storage 'core/storage/storage-account.bicep' = {
-  name: 'storage'
-  params: {
-    name: !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
-    location: location
-    tags: tags
-    containers: [
-      {name: deploymentStorageContainerName}
-    ]
-    networkAcls: skipVnet ? {} : {
-      bypass: 'None'
-      virtualNetworkRules: [
-        {
-          id: serviceVirtualNetwork.outputs.appSubnetID
-          action: 'Allow'
-          state: 'Succeeded'
-        }
-      ]
-      resourceAccessRules: [
-        {
-          tenantId: tenant().tenantId
-          resourceId: aiProject.outputs.aiProjectResourceId
-        }
-      ]
-        defaultAction: 'Deny'
-    }
-  }
-}
-
 // Dependent resources for the Azure Machine Learning workspace
 module aiDependencies './agent/standard-dependent-resources.bicep' = {
   name: 'dependencies${name}${uniqueSuffix}deployment'
@@ -254,6 +224,36 @@ module aiProject './agent/standard-ai-project.bicep' = {
     aiHubId: aiHub.outputs.aiHubID
     acsConnectionName: aiHub.outputs.acsConnectionName
     aoaiConnectionName: aiHub.outputs.aoaiConnectionName
+  }
+}
+
+// Backing storage for Azure functions backend processor
+module storage 'core/storage/storage-account.bicep' = {
+  name: 'storage'
+  params: {
+    name: !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
+    location: location
+    tags: tags
+    containers: [
+      {name: deploymentStorageContainerName}
+    ]
+    networkAcls: skipVnet ? {} : {
+      bypass: 'None'
+      virtualNetworkRules: [
+        {
+          id: serviceVirtualNetwork.outputs.appSubnetID
+          action: 'Allow'
+          state: 'Succeeded'
+        }
+      ]
+      resourceAccessRules: [
+        {
+          tenantId: tenant().tenantId
+          resourceId: aiProject.outputs.aiProjectResourceId
+        }
+      ]
+      defaultAction: 'Deny'
+    }
   }
 }
 
