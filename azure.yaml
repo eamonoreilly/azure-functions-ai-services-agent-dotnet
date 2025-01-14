@@ -12,11 +12,11 @@ hooks:
   postprovision:
     windows:
       shell: pwsh
-      run: .\infra\scripts\createlocalsettings.ps1
+      run: .\infra\scripts\setuplocalenvironment.ps1
       interactive: true
       continueOnError: false
     posix:
       shell: sh
-      run: ./infra/scripts/createlocalsettings.sh
+      run: ./infra/scripts/setuplocalenvironment.sh
       interactive: true
       continueOnError: false
