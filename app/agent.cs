@@ -2,6 +2,7 @@ using System.Text.Json;
 using Azure;
 using Azure.AI.Projects;
 using Azure.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -88,7 +89,7 @@ public static class FunctionApp
     }
 
     [Function("Prompt")]
-    public static async Task<HttpResponseData> Prompt([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req, FunctionContext executionContext)
+    public static async Task<IActionResult> Prompt([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req, FunctionContext executionContext)
     {
         var logger = executionContext.GetLogger("Prompt");
         logger.LogInformation("C# HTTP trigger function processed a request.");
@@ -100,9 +101,7 @@ public static class FunctionApp
             var data = JsonSerializer.Deserialize<Dictionary<string, string>>(requestBody);
             if (data == null || !data.TryGetValue("Prompt", out var prompt))
             {
-                var errorResponse = req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
-                await errorResponse.WriteStringAsync("The 'Prompt' field is missing in the request body.");
-                return errorResponse;
+                return new BadRequestObjectResult("The 'Prompt' field is missing in the request body.");
             }
 
             // Initialize the agent client and thread
@@ -149,16 +148,13 @@ public static class FunctionApp
             await client.DeleteAgentAsync(agent.Id);
             logger.LogInformation("Deleted agent");
 
-            var response = req.CreateResponse(System.Net.HttpStatusCode.OK);
-            await response.WriteStringAsync(lastMsg ?? string.Empty);
-            return response;
+            return new OkObjectResult(lastMsg);
         }
         catch (Exception ex)
         {
             logger.LogError($"Error processing prompt: {ex.Message}");
             var errorResponse = req.CreateResponse(System.Net.HttpStatusCode.InternalServerError);
-            await errorResponse.WriteStringAsync("An error occurred while processing the request.");
-            return errorResponse;
+            return new BadRequestObjectResult(errorResponse);
         }
     }
 
