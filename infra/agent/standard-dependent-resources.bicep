@@ -95,7 +95,6 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2024-06-01-preview' = 
   properties: {
     customSubDomainName: toLower('${(aiServicesName)}')
     apiProperties: {
-      statisticsEnabled: false
     }
     publicNetworkAccess: 'Enabled'
   }
