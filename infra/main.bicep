@@ -189,9 +189,16 @@ module storage 'br/public:avm/res/storage/storage-account:0.8.3' = {
     allowSharedKeyAccess: false // Disable local authentication methods as per policy
     dnsEndpointType: 'Standard'
     publicNetworkAccess: vnetEnabled ? 'Disabled' : 'Enabled'
+    // When vNet is enabled, restrict access but allow Azure services and specifically grant access to the AI Agent service
     networkAcls: vnetEnabled ? {
       defaultAction: 'Deny'
-      bypass: 'None'
+      bypass: 'AzureServices' // Allow Azure services including AI Agent service
+      resourceAccessRules: [
+        {
+          tenantId: tenant().tenantId
+          resourceId: aiDependencies.outputs.aiservicesID // Grant explicit access to AI Agent service
+        }
+      ]
     } : {
       defaultAction: 'Allow'
       bypass: 'AzureServices'
@@ -397,6 +404,8 @@ output SERVICE_API_NAME string = api.outputs.SERVICE_API_NAME
 output SERVICE_API_URI string = 'https://${api.outputs.SERVICE_API_NAME}.azurewebsites.net'
 output AZURE_FUNCTION_APP_NAME string = api.outputs.SERVICE_API_NAME
 output RESOURCE_GROUP string = rg.name
+output STORAGE_ACCOUNT_NAME string = storage.outputs.name
+output AI_SERVICES_NAME string = aiDependencies.outputs.aiServicesName
 
 // AI Foundry outputs
 output PROJECT_ENDPOINT string = aiProject.outputs.projectEndpoint

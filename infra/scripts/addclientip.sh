@@ -46,6 +46,11 @@ else
     # Get the client IP
     ClientIP=$(curl -s https://api.ipify.org)
 
+    # First, ensure the storage account allows access from selected networks (not completely disabled)
+    echo "Configuring storage account to allow access from selected networks..."
+    az storage account update --name "$StorageAccount" --resource-group "$ResourceGroup" --public-network-access Enabled > /dev/null
+    
+    # Add the client IP to the network rules
     az storage account network-rule add --resource-group "$ResourceGroup" --account-name "$StorageAccount" --ip-address "$ClientIP" > /dev/null
     echo "Client IP $ClientIP added to the network rule of the Azure Functions storage account"
 fi
